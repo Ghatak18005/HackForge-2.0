@@ -56,14 +56,13 @@ export default function PaymentPage() {
   const handlePayment = async () => {
     setProcessing(true)
     try {
-      // Save shop_id to upload
+      // Update status to printing after payment
       const updateResponse = await fetch('/api/orders/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           uploadId,
-          shopId,
-          status: 'printing', // Change status to printing after payment
+          status: 'printing',
         }),
       })
 

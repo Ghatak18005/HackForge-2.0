@@ -12,9 +12,14 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const shopId = formData.get('shopId') as string
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    }
+    
+    if (!shopId) {
+      return NextResponse.json({ error: 'No shop selected' }, { status: 400 })
     }
 
     // Validate file type (PDF, DOC, DOCX, etc.)
@@ -52,6 +57,7 @@ export async function POST(request: NextRequest) {
       .from('uploads')
       .insert({
         user_id: user.id,
+        shop_id: shopId,
         file_name: file.name,
         file_size: file.size,
         storage_path: filePath,

@@ -36,7 +36,6 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
-  const [uploadId, setUploadId] = useState<string | null>(null)
 
   // Shop selection states
   const [shops, setShops] = useState<{ id: string; name: string; location: string; bw_price: number; color_price: number }[]>([])
@@ -73,6 +72,7 @@ export default function Dashboard() {
 
         setOrders(userOrders || [])
         setLoadingOrders(false)
+        loadShops()
       } catch (err) {
         console.error('Error loading dashboard:', err)
       } finally {
@@ -108,12 +108,19 @@ export default function Dashboard() {
       return
     }
 
+    if (!selectedShop) {
+      setUploadError('Please select a shop first')
+      return
+    }
+
     setUploading(true)
     setUploadError(null)
+    setUploadSuccess(false)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('shopId', selectedShop.id)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -128,14 +135,20 @@ export default function Dashboard() {
         return
       }
 
-      setUploadId(data.uploadId)
+      setFile(null)
       setUploadSuccess(true)
+      // Refresh orders
+      const { data: userOrders } = await supabase
+        .from('uploads')
+        .select('id, file_name, file_size, status, created_at')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+      setOrders(userOrders || [])
 
-      // Load shops for selection
-      loadShops()
     } catch (err) {
       setUploadError('Failed to upload file. Please try again.')
       console.error(err)
+    } finally {
       setUploading(false)
     }
   }
@@ -159,18 +172,7 @@ export default function Dashboard() {
 
   const handleSelectShop = (shop: { id: string; name: string; location: string; bw_price: number; color_price: number }) => {
     setSelectedShop(shop)
-  }
-
-  const handleProceedToPayment = () => {
-    if (!selectedShop || !uploadId) return
-    router.push(`/payment?uploadId=${uploadId}&shopId=${selectedShop.id}`)
-  }
-
-  const resetUpload = () => {
-    setFile(null)
     setUploadSuccess(false)
-    setUploadId(null)
-    setSelectedShop(null)
     setUploadError(null)
   }
 
@@ -210,91 +212,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Upload Section - Main Focus */}
-        {!uploadSuccess ? (
-          <div className="mb-8 bg-white rounded-3xl shadow-lg border border-slate-200 p-8">
+        {/* Upload Section */}
+        <div className="mb-8 bg-white rounded-3xl shadow-lg border border-slate-200 p-8">
+          {/* Shop Selection */}
+          <div className="mb-8">
             <div className="flex items-center gap-2 mb-6">
-              <UploadCloud className="w-6 h-6 text-blue-600" />
-              <h2 className="text-2xl font-bold text-slate-900">Upload Document</h2>
+              <Store className="w-6 h-6 text-blue-600" />
+              <h2 className="text-2xl font-bold text-slate-900">1. Select a Shop</h2>
             </div>
-
-            {/* Upload Area */}
-            <div className="mb-6">
-              <label className="block">
-                <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-300">
-                  <Upload className="w-12 h-12 text-blue-500 mx-auto mb-3" />
-                  <p className="text-lg font-semibold text-slate-900 mb-1">
-                    Drop your file here or click to browse
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    PDF, Word (.doc, .docx), or Excel (.xls, .xlsx) - Max 10 MB
-                  </p>
-                </div>
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx"
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {/* Selected File */}
-            {file && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                  <div>
-                    <p className="font-semibold text-slate-900">{file.name}</p>
-                    <p className="text-sm text-slate-600">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setFile(null)}
-                  className="text-sm px-3 py-1 bg-white text-slate-700 rounded hover:bg-slate-100 transition"
-                >
-                  Change
-                </button>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {uploadError && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                <p className="text-red-700 text-sm">{uploadError}</p>
-              </div>
-            )}
-
-            {/* Upload Button */}
-            <button
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-lg transition shadow-lg shadow-blue-600/20"
-            >
-              {uploading ? 'Uploading...' : 'Upload Document'}
-            </button>
-          </div>
-        ) : (
-          /* Shop Selection Modal */
-          <div className="mb-8 bg-white rounded-3xl shadow-lg border border-slate-200 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-                <h2 className="text-2xl font-bold text-slate-900">Upload Successful!</h2>
-              </div>
-              <button
-                onClick={resetUpload}
-                className="p-2 hover:bg-slate-100 rounded-full transition"
-              >
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-
-            <p className="text-slate-600 mb-6">Select a shop to get your printing done:</p>
-
             {loadingShops ? (
               <div className="text-center py-8">
                 <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
@@ -306,7 +231,7 @@ export default function Dashboard() {
                 <p className="text-slate-600">No shops available at the moment.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {shops.map((shop) => (
                   <button
                     key={shop.id}
@@ -337,17 +262,85 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-
-            {selectedShop && (
-              <button
-                onClick={handleProceedToPayment}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition shadow-lg shadow-blue-600/20"
-              >
-                Proceed to Payment
-              </button>
-            )}
           </div>
-        )}
+
+          {/* Upload Area */}
+          <div>
+            <div className="flex items-center gap-2 mb-6">
+              <UploadCloud className="w-6 h-6 text-blue-600" />
+              <h2 className="text-2xl font-bold text-slate-900">2. Upload Document</h2>
+            </div>
+            
+            <div className={`transition-opacity duration-500 ${!selectedShop ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <div className="mb-6">
+                <label className="block">
+                  <div className={`border-2 border-dashed rounded-xl p-8 text-center ${!selectedShop ? 'border-slate-300' : 'border-blue-300 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-300'}`}>
+                    <Upload className={`w-12 h-12 mx-auto mb-3 ${!selectedShop ? 'text-slate-400' : 'text-blue-500'}`} />
+                    <p className={`text-lg font-semibold mb-1 ${!selectedShop ? 'text-slate-500' : 'text-slate-900'}`}>
+                      Drop your file here or click to browse
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      PDF, Word (.doc, .docx), or Excel (.xls, .xlsx) - Max 10 MB
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                    disabled={!selectedShop}
+                  />
+                </label>
+              </div>
+
+              {/* Selected File */}
+              {file && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-slate-900">{file.name}</p>
+                      <p className="text-sm text-slate-600">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setFile(null)}
+                    className="text-sm px-3 py-1 bg-white text-slate-700 rounded hover:bg-slate-100 transition"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {uploadError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-red-700 text-sm">{uploadError}</p>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {uploadSuccess && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-green-700 text-sm">Upload successful! Your order has been placed and is now visible in your recent orders.</p>
+                </div>
+              )}
+
+              {/* Upload Button */}
+              <button
+                onClick={handleUpload}
+                disabled={!file || !selectedShop || uploading}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-lg transition shadow-lg shadow-blue-600/20"
+              >
+                {uploading ? 'Uploading...' : 'Upload & Place Order'}
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* --- BENTO GRID LAYOUT --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -359,7 +352,7 @@ export default function Dashboard() {
             <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-500">Total Prints</p>
-                <p className="text-3xl font-bold text-slate-900">0</p>
+                <p className="text-3xl font-bold text-slate-900">{orders.length}</p>
               </div>
               <div className="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center">
                 <Printer className="h-6 w-6 text-amber-500" />

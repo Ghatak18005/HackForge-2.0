@@ -10,6 +10,8 @@ import {
   IndianRupee,
   FileText,
   Download,
+  Eye,
+  ShieldCheck,
 } from 'lucide-react'
 import LogoutButton from '@/components/logout-button'
 
@@ -21,6 +23,9 @@ export default function ShopDashboard() {
   const [orders, setOrders] = useState<{ id: string; file_name: string; file_size: number; status: string; created_at: string; user_id: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingOrders, setLoadingOrders] = useState(false)
+  const [showOtpModal, setShowOtpModal] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
+  const [otp, setOtp] = useState('')
 
   useEffect(() => {
     const init = async () => {
@@ -76,41 +81,118 @@ export default function ShopDashboard() {
     init()
   }, [router, supabase])
 
-  const handleDownload = async (uploadId: string, fileName: string) => {
+  const handleRequest = async (uploadId: string, intent: 'view' | 'download') => {
     try {
       const response = await fetch('/api/orders/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadId }),
+        body: JSON.stringify({ uploadId, intent }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to download file')
+        throw new Error(errorData.error || `Failed to ${intent} file`)
       }
 
-      // Check if response is JSON (signed URL) or blob (direct file)
-      const contentType = response.headers.get('content-type')
-      
-      if (contentType?.includes('application/json')) {
-        const data = await response.json()
-        // Open signed URL in new window for download
-        window.open(data.url, '_blank')
-      } else {
-        // Direct file download
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = fileName
-        link.click()
-        window.URL.revokeObjectURL(url)
-      }
+      const data = await response.json()
+      window.open(data.url, '_blank')
+
     } catch (error) {
-      console.error('Download error:', error)
-      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`${intent} error:`, error)
+      alert(`Failed to ${intent} file: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
+
+    const handleDownload = (uploadId: string) => handleRequest(uploadId, 'download')
+
+    const handleView = (uploadId: string) => handleRequest(uploadId, 'view')
+
+  
+
+    const handleUpdateStatus = async (uploadId: string, status: 'printing' | 'completed') => {
+
+      try {
+
+        const response = await fetch('/api/orders/update', {
+
+          method: 'POST',
+
+          headers: { 'Content-Type': 'application/json' },
+
+          body: JSON.stringify({ uploadId, status }),
+
+        })
+
+  
+
+        if (!response.ok) {
+
+          const errorData = await response.json()
+
+          throw new Error(errorData.error || 'Failed to update status')
+
+        }
+
+  
+
+        // Update the local state to reflect the change immediately
+
+        setOrders(currentOrders =>
+
+          currentOrders.map(order =>
+
+            order.id === uploadId ? { ...order, status: status } : order
+
+          )
+
+        )
+
+      } catch (error) {
+
+        console.error('Status update error:', error)
+
+        alert(`Failed to update status: ${error instanceof Error ? error.message : 'Unknown error'}`)
+
+      }
+
+    }
+
+    const handleVerifyOtp = async () => {
+        if (!selectedOrder || !otp) {
+          alert('Please enter the OTP.')
+          return
+        }
+    
+        try {
+          const response = await fetch('/api/orders/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uploadId: selectedOrder, otp }),
+          })
+    
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to verify OTP')
+          }
+    
+          // Update the local state to reflect the change immediately
+          setOrders(currentOrders =>
+            currentOrders.map(order =>
+              order.id === selectedOrder ? { ...order, status: 'done' } : order
+            )
+          )
+    
+          // Close the modal
+          setShowOtpModal(false)
+          setSelectedOrder(null)
+          setOtp('')
+        } catch (error) {
+          console.error('OTP verification error:', error)
+          alert(`Failed to verify OTP: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+      }
+
+  
 
   if (loading) {
     return (
@@ -125,6 +207,7 @@ export default function ShopDashboard() {
 
   const pendingCount = orders.filter(o => o.status === 'pending_payment').length
   const completedCount = orders.filter(o => o.status === 'completed').length
+  const doneCount = orders.filter(o => o.status === 'done').length
   return (
     <div className="min-h-screen bg-slate-50">
       {/* PROFESSIONAL HEADER */}
@@ -161,16 +244,16 @@ export default function ShopDashboard() {
             bg="bg-orange-50"
           />
           <StatCard
-            title="Completed"
+            title="Ready for Pickup"
             value={completedCount.toString()}
             icon={<CheckCircle className="w-5 h-5 text-blue-600" />}
             bg="bg-blue-50"
           />
-          <StatCard
-            title="Shop Location"
-            value={shopData?.location || 'N/A'}
-            icon={<FileText className="w-5 h-5 text-slate-600" />}
-            bg="bg-slate-100"
+           <StatCard
+            title="Orders Done"
+            value={doneCount.toString()}
+            icon={<ShieldCheck className="w-5 h-5 text-green-600" />}
+            bg="bg-green-50"
           />
           <StatCard
             title="B/W Rate"
@@ -231,6 +314,7 @@ export default function ShopDashboard() {
                 {/* Middle: Status */}
                 <div className="flex gap-4">
                   <span className={`px-3 py-1.5 rounded-md text-sm font-bold border ${
+                    order.status === 'done' ? 'text-gray-700 bg-gray-50 border-gray-200' :
                     order.status === 'completed' ? 'text-green-700 bg-green-50 border-green-200' :
                     order.status === 'printing' ? 'text-blue-700 bg-blue-50 border-blue-200' :
                     'text-yellow-700 bg-yellow-50 border-yellow-200'
@@ -242,7 +326,14 @@ export default function ShopDashboard() {
                 {/* Right: Actions */}
                 <div className="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-slate-100 pt-4 md:pt-0">
                   <button
-                    onClick={() => handleDownload(order.id, order.file_name)}
+                    onClick={() => handleView(order.id)}
+                    className="p-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition"
+                    title="View & Print File"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDownload(order.id)}
                     className="p-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition"
                     title="Download File"
                   >
@@ -250,16 +341,32 @@ export default function ShopDashboard() {
                   </button>
 
                   {order.status === 'pending_payment' ? (
-                    <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition flex items-center gap-2">
+                    <button 
+                      onClick={() => handleUpdateStatus(order.id, 'printing')}
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition flex items-center gap-2">
                       <Printer className="w-4 h-4" /> Start Printing
                     </button>
                   ) : order.status === 'printing' ? (
-                    <button className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-purple-700 shadow-lg shadow-purple-600/20 transition flex items-center gap-2">
+                    <button 
+                      onClick={() => handleUpdateStatus(order.id, 'completed')}
+                      className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-purple-700 shadow-lg shadow-purple-600/20 transition flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" /> Mark Ready
                     </button>
+                  ) : order.status === 'completed' ? (
+                    <button
+                        onClick={() => {
+                        setSelectedOrder(order.id)
+                        setShowOtpModal(true)
+                        }}
+                        className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-green-700 shadow-lg shadow-green-600/20 transition flex items-center gap-2"
+                    >
+                        <ShieldCheck className="w-4 h-4" /> Verify OTP
+                    </button>
                   ) : (
-                    <button className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-green-700 shadow-lg shadow-green-600/20 transition flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" /> Completed
+                    <button 
+                      disabled 
+                      className="bg-gray-600 text-white px-6 py-3 rounded-lg font-bold text-sm transition flex items-center gap-2 cursor-not-allowed opacity-70">
+                      <CheckCircle className="w-4 h-4" /> Done
                     </button>
                   )}
                 </div>
@@ -268,6 +375,36 @@ export default function ShopDashboard() {
           </div>
         )}
       </main>
+
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-8 max-w-sm w-full">
+                <h2 className="text-xl font-bold mb-4">Verify OTP</h2>
+                <p className="text-slate-500 mb-6">Enter the OTP provided by the customer to complete the order.</p>
+                <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
+                placeholder="Enter OTP"
+                />
+                <div className="flex justify-end gap-4">
+                <button
+                    onClick={() => setShowOtpModal(false)}
+                    className="px-6 py-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={handleVerifyOtp}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700"
+                >
+                    Verify & Complete
+                </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   )
 }

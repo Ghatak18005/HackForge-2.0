@@ -58,9 +58,9 @@ const supabaseService = createClient(
 export async function POST(request: NextRequest) {
   try {
     const supabaseUserClient = await createServerSupabaseClient()
-    const { uploadId } = await request.json()
+    const { uploadId, intent } = await request.json() // intent can be 'view' or 'download'
 
-    console.log('Download request for uploadId:', uploadId)
+    console.log(`Download request for uploadId: ${uploadId}, intent: ${intent}`)
 
     // 1. Authenticate the user (e.g., the shop owner)
     const {
@@ -107,33 +107,23 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // Determine the download option based on the intent
+      const isViewIntent = intent === 'view'
+      
       // Try to generate signed URL for download using the service client
       const { data, error } = await supabaseService.storage
         .from('documents')
-        .createSignedUrl(storagePath, 3600) // Valid for 1 hour
+        .createSignedUrl(storagePath, 3600, {
+          download: isViewIntent ? false : true, // false for inline, true for attachment
+        })
 
       console.log('Signed URL result:', { data, error })
 
       if (error) {
         console.log('Signed URL error details:', error)
-        // If signed URL fails, try to download directly with the service client
-        console.log('Attempting direct download...')
-        const { data: fileData, error: downloadError } = await supabaseService.storage
-          .from('documents')
-          .download(storagePath)
-
-        if (downloadError) {
-          console.error('Direct download error with service client:', downloadError)
-          throw downloadError
-        }
-
-        // Return file as blob
-        return new NextResponse(fileData, {
-          headers: {
-            'Content-Type': upload.file_type || 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="${upload.file_name}"`,
-          },
-        })
+        // If signed URL fails, it's a hard error now, don't fallback to direct download 
+        // as it complicates the inline/attachment logic.
+        throw error
       }
 
       return NextResponse.json({
