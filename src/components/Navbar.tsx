@@ -1,29 +1,63 @@
-import Link from "next/link";
-import { Printer } from "lucide-react";
+"use client"; // <--- Client Component
 
-export default function Navbar() {
+import Link from "next/link";
+import { usePathname } from "next/navigation"; // Hook to check current URL
+import { Printer, LayoutDashboard } from "lucide-react";
+import LogoutButton from "@/components/logout-button";
+import { User } from "@supabase/supabase-js"; // Type for User
+
+export default function Navbar({ user }: { user: User | null }) {
+  const pathname = usePathname(); // Get current URL (e.g., "/dashboard")
+
+  // Helper to check if we are on a specific page
+  const isDashboard = pathname === "/dashboard";
+  const isUploadPage = pathname === "/upload";
+
   return (
     <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
+        {/* Logo - Smart Redirect */}
+        {/* If logged in, Logo goes to Dashboard. If not, goes to Home. */}
+        <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 group">
           <div className="bg-blue-600 p-1.5 rounded-lg group-hover:bg-blue-700 transition-colors">
             <Printer className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold text-xl tracking-tight text-slate-900">Print-Link</span>
         </Link>
         
-        {/* Navigation Links */}
-        <div className="flex items-center gap-6">
-          <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition">
-            Log in
-          </Link>
-          <Link href="/upload">
-            <button className="bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition shadow-lg shadow-slate-900/20 active:scale-95 transform duration-100">
-              Start Printing
-            </button>
-          </Link>
+        {/* Right Side Actions */}
+        <div className="flex items-center gap-4">
+          
+          {user ? (
+            // LOGGED IN STATE
+            <>
+              {/* Only show "Dashboard" link if NOT on Dashboard */}
+              {!isDashboard && (
+                <Link 
+                  href="/dashboard" 
+                  className="text-sm font-medium text-slate-600 hover:text-blue-600 transition flex items-center gap-2 px-3 py-2"
+                >
+                   <LayoutDashboard className="w-4 h-4" /> 
+                   <span className="hidden sm:inline">Dashboard</span>
+                </Link>
+              )}
+
+              {/* Vertical Divider (Only show if we have links to the left) */}
+              {!isDashboard && <div className="h-6 w-px bg-slate-200 mx-1"></div>}
+              
+              <LogoutButton />
+            </>
+          ) : (
+            // LOGGED OUT STATE
+            <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition px-3 py-2">
+              Log in
+            </Link>
+          )}
+
+          {/* Primary CTA - Hide if we are already on the Upload page */}
+         
+
         </div>
       </div>
     </nav>

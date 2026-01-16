@@ -23,20 +23,9 @@ export default async function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-md">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">HackForge Dashboard</h1>
-          <LogoutButton />
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        
-        {/* Welcome Section */}
+      <main className="max-w-6xl mx-auto px-6 pt-24 pb-12">
         <div className="mb-12">
-          <h2 className="text-4xl font-bold text-slate-900 mb-2">Welcome, {userProfile?.full_name || 'User'}!</h2>
+          <h2 className="text-4xl font-bold text-white mb-2">Welcome, {userProfile?.full_name || 'User'}!</h2>
           <p className="text-slate-600">Manage your printing orders and account settings</p>
         </div>
 

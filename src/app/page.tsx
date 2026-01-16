@@ -1,4 +1,5 @@
 "use client";
+import Navbar from "@/components/Navbar";
 import { motion } from "framer-motion";
 import { 
   UploadCloud, 
@@ -12,32 +13,11 @@ import {
   Printer
 } from "lucide-react";
 import Link from "next/link";
-
 export default function Home() {
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-100 selection:text-blue-700">
       
-      {/* PROFESSIONAL NAVBAR */}
-      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg">
-              <Printer className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-xl tracking-tight text-slate-900">Printify</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition">
-              Log in
-            </Link>
-            <Link href="/upload">
-              <button className="bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">
-                Start Printing
-              </button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+   
 
       <section className="relative pt-36 pb-20 overflow-hidden px-6 bg-grid-pattern border-b border-slate-100">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-100/50 rounded-full blur-[100px] -z-10" />

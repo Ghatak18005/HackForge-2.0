@@ -1,29 +1,37 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar"; // Import Navbar
-import Footer from "@/components/Footer"; // Import Footer
+import Navbar from "@/components/Navbar"; 
+import Footer from "@/components/Footer"; 
+import { createClient } from "@/utils/supabase/server"; // Import Supabase
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Printify",
-  description: "Remote printing service for students.",
+  title: "Print-Link",
+  description: "Remote printing service",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 1. Fetch User Session Here
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Navbar />   {/* Stays at the top of EVERY page */}
+        {/* 2. Pass User to Navbar */}
+        <Navbar user={user} />
+        
         <main>
-          {children} {/* This is where Privacy, Home, Contact pages render */}
+          {children}
         </main>
-        <Footer />   {/* Stays at the bottom of EVERY page */}
+        
+        <Footer />
       </body>
     </html>
   );
