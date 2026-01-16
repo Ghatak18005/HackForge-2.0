@@ -1,5 +1,4 @@
 "use client";
-import Navbar from "@/components/Navbar";
 import { motion } from "framer-motion";
 import { 
   UploadCloud, 
@@ -9,8 +8,7 @@ import {
   Clock, 
   Server, 
   Database, 
-  Lock,
-  Printer
+  Lock
 } from "lucide-react";
 import Link from "next/link";
 export default function Home() {

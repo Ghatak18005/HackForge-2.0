@@ -43,6 +43,37 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+
+    // Check user role and redirect accordingly
+    const userRole = user?.user_metadata?.role
+    
+    if (userRole === 'shopkeeper') {
+      // Check if shopkeeper has shop setup
+      const { data: shop } = await supabase
+        .from('shops')
+        .select('id')
+        .eq('owner_id', user.id)
+        .single()
+
+      if (!shop) {
+        return NextResponse.redirect(new URL('/shop/setup', request.url))
+      }
+
+      return NextResponse.redirect(new URL('/shop/dashboard', request.url))
+    }
+
+    // For students, check if profile is complete
+    if (userRole === 'student' || userRole === null) {
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('phone')
+        .eq('id', user.id)
+        .single()
+
+      if (!userProfile?.phone) {
+        return NextResponse.redirect(new URL('/user/setup', request.url))
+      }
+    }
   }
 
   return NextResponse.redirect(new URL('/dashboard', request.url))
